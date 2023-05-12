@@ -68,7 +68,7 @@ if platform.system() != 'Windows':
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.experimental import attempt_load
-from models.yolo import ClassificationModel, Detect, DetectionModel, SegmentationModel
+from models.yolo import ClassificationModel, Detect, DetectionModel, SegmentationModel, ClassificationModel
 from utils.dataloaders import LoadImages
 from utils.general import (LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
                            check_yaml, colorstr, file_size, get_default_args, print_args, url2file, yaml_save)
@@ -182,8 +182,17 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX
     onnx.checker.check_model(model_onnx)  # check onnx model
 
     # Metadata
-    # d = {'stride': int(max(model.stride)), 'names': model.names}
-    d = {'stride': int(max(model.stride)), 'names': dict(model.names), 'anchors':model.model[-1].anchors.numpy().tolist()}
+    d = {'stride': int(max(model.stride)), 'names': model.names}
+    if isinstance(model, DetectionModel):
+        d['anchors'] = model.model[-1].anchors.numpy().tolist()
+        d['task'] = "Detection"
+    elif isinstance(model, ClassificationModel):
+        d['task'] = "Classification"
+    elif isinstance(model, SegmentationModel):
+        d['task'] = "Segmentation"
+
+
+    # d = {'stride': int(max(model.stride)), 'names': dict(model.names), 'anchors':model.model[-1].anchors.numpy().tolist()}
     for k, v in d.items():
         meta = model_onnx.metadata_props.add()
         meta.key, meta.value = k, str(v)
