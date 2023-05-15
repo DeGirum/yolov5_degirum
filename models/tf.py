@@ -267,7 +267,9 @@ class TFSPPF(keras.layers.Layer):
         x = self.cv1(inputs)
         y1 = self.m(x)
         y2 = self.m(y1)
-        return self.cv2(tf.concat([x, y1, y2, self.m(y2)], 3))
+        y3 = tf.concat([x, y1], 3)
+        y4 = tf.concat([y2, self.m(y2)], 3)
+        return self.cv2( tf.concat([y3, y4], 3) )
 
 
 class TFDetect(keras.layers.Layer):
