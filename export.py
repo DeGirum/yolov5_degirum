@@ -187,7 +187,6 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX
         d['anchors'] = model.model[-1].anchors.numpy().tolist()
         d['task'] = "Detection"
     elif isinstance(model, ClassificationModel):
-        d['names'] = model.names
         d['task'] = "Classification"
     elif isinstance(model, SegmentationModel):
         d['task'] = "Segmentation"
