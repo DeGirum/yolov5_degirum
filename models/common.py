@@ -109,11 +109,11 @@ class TransformerBlock(nn.Module):
 
 class Bottleneck(nn.Module):
     # Standard bottleneck
-    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, shortcut, groups, expansion
+    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5, k=(1, 3)):  # ch_in, ch_out, shortcut, groups, expansion
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
-        self.cv1 = Conv(c1, c_, 1, 1)
-        self.cv2 = Conv(c_, c2, 3, 1, g=g)
+        self.cv1 = Conv(c1, c_, k[0], 1)
+        self.cv2 = Conv(c_, c2, k[1], 1, g=g)
         self.add = shortcut and c1 == c2
 
     def forward(self, x):
@@ -175,7 +175,7 @@ class C2f(nn.Module):
         self.cv1_1 = Conv(c1, self.c, 1, 1)
         self.cv1_2 = Conv(c1, self.c, 1, 1)
         self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
-        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
+        self.m = nn.ModuleList( Bottleneck(self.c, self.c, shortcut=shortcut, g=g, e=1.0, k=(3, 3)) for _ in range(n))
 
     def forward(self, x):
         y = list((self.cv1_1(x), self.cv1_2(x)))
