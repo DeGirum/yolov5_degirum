@@ -28,7 +28,7 @@ import torch.nn as nn
 from tensorflow import keras
 
 from models.common import (C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv,
-                           DWConvTranspose2d, Focus, autopad)
+                           DWConvTranspose2d, Focus, C2f, autopad)
 from models.experimental import MixConv2d, attempt_load
 from models.yolo import Detect, Segment
 from utils.activations import SiLU
@@ -147,17 +147,31 @@ class TFFocus(keras.layers.Layer):
 
 class TFBottleneck(keras.layers.Layer):
     # Standard bottleneck
-    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5, w=None):  # ch_in, ch_out, shortcut, groups, expansion
+    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5, k=(1, 3), w=None):  # ch_in, ch_out, shortcut, groups, expansion
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
-        self.cv1 = TFConv(c1, c_, 1, 1, w=w.cv1)
-        self.cv2 = TFConv(c_, c2, 3, 1, g=g, w=w.cv2)
+        self.cv1 = TFConv(c1, c_, k[0], 1, w=w.cv1)
+        self.cv2 = TFConv(c_, c2, k[1], 1, g=g, w=w.cv2)
         self.add = shortcut and c1 == c2
 
     def call(self, inputs):
         return inputs + self.cv2(self.cv1(inputs)) if self.add else self.cv2(self.cv1(inputs))
 
+class TFC2f(keras.layers.Layer):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5, w=None):
+        super().__init__()
 
+        self.c = int(c2 * e)  # hidden channels
+        self.cv1_1 = TFConv(c1, self.c, 1, 1, w=w.cv1_1)
+        self.cv1_2 = TFConv(c1, self.c, 1, 1, w=w.cv1_2)
+        self.cv2 = TFConv((2 + n) * self.c, c2, 1, w=w.cv2)
+        self.m = [TFBottleneck(self.c, self.c, shortcut=shortcut, g=g, e=1.0, k=(3, 3), w=w.m[i]) for i in range(n)]
+
+    def call(self, x):
+        y = list((self.cv1_1(x), self.cv1_2(x)))
+        y.extend([m(y[-1]) for m in self.m])
+        return self.cv2(tf.concat(y, axis=1))
+    
 class TFCrossConv(keras.layers.Layer):
     # Cross Convolution
     def __init__(self, c1, c2, k=3, s=1, g=1, e=1.0, shortcut=False, w=None):
@@ -401,16 +415,17 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
                 args[j] = eval(a) if isinstance(a, str) else a  # eval strings
             except NameError:
                 pass
-
+        
+        
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
         if m in [
                 nn.Conv2d, Conv, DWConv, DWConvTranspose2d, Bottleneck, SPP, SPPF, MixConv2d, Focus, CrossConv,
-                BottleneckCSP, C3, C3x]:
+                BottleneckCSP, C3, C3x, C2f]:
             c1, c2 = ch[f], args[0]
             c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3, C3x]:
+            if m in [BottleneckCSP, C3, C3x, C2f]:
                 args.insert(2, n)
                 n = 1
         elif m is nn.BatchNorm2d:
