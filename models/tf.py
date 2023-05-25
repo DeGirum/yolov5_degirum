@@ -170,7 +170,7 @@ class TFC2f(keras.layers.Layer):
     def call(self, x):
         y = list((self.cv1_1(x), self.cv1_2(x)))
         y.extend([m(y[-1]) for m in self.m])
-        return self.cv2(tf.concat(y, axis=1))
+        return self.cv2(tf.concat(y, axis=3))
     
 class TFCrossConv(keras.layers.Layer):
     # Cross Convolution
