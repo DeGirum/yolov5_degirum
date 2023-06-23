@@ -181,10 +181,16 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX
     model_onnx = onnx.load(f)  # load onnx model
     onnx.checker.check_model(model_onnx)  # check onnx model
 
+    
     # Metadata
     d = {'stride': int(max(model.stride)), 'names': model.names}
     if isinstance(model, DetectionModel):
-        d['anchors'] = model.model[-1].anchors.numpy().tolist()
+        for module in model.modules():
+            if isinstance(module, Detect):
+                detect_layer = module
+                break
+        if detect_layer is not None:
+            d['anchors'] = detect_layer.anchors.numpy().tolist()
         d['task'] = "Detection"
     elif isinstance(model, ClassificationModel):
         d['task'] = "Classification"
