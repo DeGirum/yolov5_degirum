@@ -779,15 +779,15 @@ def run(
             m.exclude_postprocess_detect = exclude_postprocess_detect
         
         if act_type is None and isinstance(m, Conv):
-            if m.act_type == nn.SiLU():
+            if isinstance(m.act, nn.SiLU):
                 act_type = 'silu'
-            elif m.act_type == nn.ReLU6():
+            elif isinstance(m.act, nn.ReLU6):
                 act_type = 'relu6'
-            elif m.act_type == nn.ReLU():
+            elif isinstance(m.act, nn.ReLU):
                 act_type = 'relu'
-            elif m.act_type == nn.LeakyReLU():
+            elif isinstance(m.act, nn.LeakyReLU):
                 act_type = 'lrelu'
-            elif m.act_type == nn.Hardswish():
+            elif isinstance(m.act, nn.Hardswish):
                 act_type = 'hswish'
 
 
