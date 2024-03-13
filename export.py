@@ -58,6 +58,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from torch import nn
 from torch.utils.mobile_optimizer import optimize_for_mobile
 
 FILE = Path(__file__).resolve()
@@ -73,6 +74,7 @@ from utils.dataloaders import LoadImages
 from utils.general import (LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
                            check_yaml, colorstr, file_size, get_default_args, print_args, url2file, yaml_save)
 from utils.torch_utils import select_device, smart_inference_mode
+from models.common import Conv
 
 MACOS = platform.system() == 'Darwin'  # macOS environment
 
@@ -717,6 +719,7 @@ def run(
     im = torch.zeros(batch_size, 3, *imgsz).to(device)  # image size(1,3,320,192) BCHW iDetection
 
     # Update model
+    act_type = None
     model.eval()
     for k, m in model.named_modules():
         if isinstance(m, Detect):
@@ -724,6 +727,18 @@ def run(
             m.dynamic = dynamic
             m.export = True
             m.exclude_postprocess_detect = exclude_postprocess_detect
+        
+        if act_type is None and isinstance(m, Conv):
+            if m.act_type == nn.SiLU():
+                act_type = 'silu'
+            elif m.act_type == nn.ReLU6():
+                act_type = 'relu6'
+            elif m.act_type == nn.ReLU():
+                act_type = 'relu'
+            elif m.act_type == nn.LeakyReLU():
+                act_type = 'lrelu'
+            elif m.act_type == nn.Hardswish():
+                act_type = 'hswish'
 
 
     for _ in range(2):
@@ -790,7 +805,7 @@ def run(
                     f"\nValidate:        python {dir / 'val.py'} --weights {f[-1]} {h}"
                     f"\nPyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', '{f[-1]}')  {s}"
                     f'\nVisualize:       https://netron.app')
-    return f  # return list of exported files/dirs
+    return f, act_type  # return list of exported files/dirs
 
 
 def parse_opt(known=False):
