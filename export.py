@@ -741,7 +741,8 @@ def run(
         topk_all=100,  # TF.js NMS: topk for all classes to keep
         iou_thres=0.45,  # TF.js NMS: IoU threshold
         conf_thres=0.25,  # TF.js NMS: confidence threshold
-        exclude_postprocess_detect=False,  # onnx export excludes postprocessing for detection models
+        exclude_postprocess_detect=False,  # onnx export excludes postprocessing for detection models,
+        separate_outputs=False, # separate output into 3 tensors
 ):
     t = time.time()
     include = [x.lower() for x in include]  # to lowercase
@@ -777,6 +778,7 @@ def run(
             m.dynamic = dynamic
             m.export = True
             m.exclude_postprocess_detect = exclude_postprocess_detect
+            m.separate_outputs = separate_outputs
         
         if act_type is None and isinstance(m, Conv):
             if isinstance(m.act, nn.SiLU):
@@ -795,7 +797,7 @@ def run(
         y = model(im)  # dry runs
     if half and not coreml:
         im, model = im.half(), model.half()  # to FP16
-    shape = tuple((y[0] if isinstance(y, tuple) else y).shape)  # model output shape
+    shape = tuple((y[0] if isinstance(y, tuple) or isinstance(y, list) else y).shape)  # model output shape
     metadata = {'stride': int(max(model.stride)), 'names': model.names}  # model metadata
     LOGGER.info(f"\n{colorstr('PyTorch:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
 
