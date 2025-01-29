@@ -276,6 +276,7 @@ class TFDetect(keras.layers.Layer):
     # TF YOLOv5 Detect layer
     export = False  # export mode
     exclude_postprocess_detect = False  # tflite export excludes postprocess
+    separate_outputs = False    # separate output into 3 tensors
 
     def __init__(self, nc=80, anchors=(), ch=(), imgsz=(640, 640), w=None):  # detection layer
         super().__init__()
@@ -318,7 +319,7 @@ class TFDetect(keras.layers.Layer):
                     y = tf.concat([xy, wh, tf.sigmoid(y[..., 4:5 + self.nc]), y[..., 5 + self.nc:]], -1)
                     z.append(tf.reshape(y, [-1, self.na * ny * nx, self.no]))
 
-        return tf.transpose(x, [0, 2, 1, 3]) if self.training else (tf.concat(z, 1), )
+        return tf.transpose(x, [0, 2, 1, 3]) if self.training else (z if self.separate_outputs else (tf.concat(z, 1), ))
 
     @staticmethod
     def _make_grid(nx=20, ny=20):

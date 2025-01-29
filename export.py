@@ -403,6 +403,7 @@ def export_saved_model(model,
                        iou_thres=0.45,
                        conf_thres=0.25,
                        keras=False,
+                       separate_outputs=False,
                        prefix=colorstr('TensorFlow SavedModel:')):
     # YOLOv5 TensorFlow SavedModel export
     try:
@@ -416,6 +417,7 @@ def export_saved_model(model,
 
     TFDetect.export = True
     TFDetect.exclude_postprocess_detect = True
+    TFDetect.separate_outputs = separate_outputs
 
     LOGGER.info(f'\n{prefix} starting export with tensorflow {tf.__version__}...')
     f = str(file).replace('.pt', '_saved_model')
@@ -829,7 +831,8 @@ def run(
                                            topk_all=topk_all,
                                            iou_thres=iou_thres,
                                            conf_thres=conf_thres,
-                                           keras=keras)
+                                           keras=keras,
+                                           separate_outputs=separate_outputs)
         if pb or tfjs:  # pb prerequisite to tfjs
             f[6], _ = export_pb(s_model, file)
         if tflite or edgetpu:
