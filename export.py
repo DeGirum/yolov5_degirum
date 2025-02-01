@@ -887,6 +887,7 @@ def parse_opt(known=False):
     parser.add_argument('--iou-thres', type=float, default=0.45, help='TF.js NMS: IoU threshold')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='TF.js NMS: confidence threshold')
     parser.add_argument('--exclude-postprocess-detect', action='store_true', help='onnx export excludes postprocessing for detection models')
+    parser.add_argument('--separate-outputs', action='store_true', help='export model with outputs separated into heads')
     parser.add_argument(
         '--include',
         nargs='+',
