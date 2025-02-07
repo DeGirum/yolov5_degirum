@@ -40,6 +40,7 @@ class Detect(nn.Module):
     dynamic = False  # force grid reconstruction
     export = False  # export mode
     exclude_postprocess_detect = False  # onnx export excludes postprocess
+    separate_outputs = False # separate output into 3 tensors
 
     def __init__(self, nc=80, anchors=(), ch=(), inplace=True):  # detection layer
         super().__init__()
@@ -82,7 +83,7 @@ class Detect(nn.Module):
                         y = torch.cat((xy, wh, conf), 4)
                         z.append(y.view(bs, self.na * nx * ny, self.no))
 
-        return x if self.training else (torch.cat(z, 1), ) if self.export else (torch.cat(z, 1), x)
+        return x if self.training else (z if self.separate_outputs else (torch.cat(z, 1), )) if self.export else (torch.cat(z, 1), x)
 
     def _make_grid(self, nx=20, ny=20, i=0, torch_1_10=check_version(torch.__version__, '1.10.0')):
         d = self.anchors[i].device

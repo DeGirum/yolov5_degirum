@@ -403,6 +403,7 @@ def export_saved_model(model,
                        iou_thres=0.45,
                        conf_thres=0.25,
                        keras=False,
+                       separate_outputs=False,
                        prefix=colorstr('TensorFlow SavedModel:')):
     # YOLOv5 TensorFlow SavedModel export
     try:
@@ -416,6 +417,7 @@ def export_saved_model(model,
 
     TFDetect.export = True
     TFDetect.exclude_postprocess_detect = True
+    TFDetect.separate_outputs = separate_outputs
 
     LOGGER.info(f'\n{prefix} starting export with tensorflow {tf.__version__}...')
     f = str(file).replace('.pt', '_saved_model')
@@ -741,7 +743,8 @@ def run(
         topk_all=100,  # TF.js NMS: topk for all classes to keep
         iou_thres=0.45,  # TF.js NMS: IoU threshold
         conf_thres=0.25,  # TF.js NMS: confidence threshold
-        exclude_postprocess_detect=False,  # onnx export excludes postprocessing for detection models
+        exclude_postprocess_detect=False,  # onnx export excludes postprocessing for detection models,
+        separate_outputs=False, # separate output into 3 tensors
 ):
     t = time.time()
     include = [x.lower() for x in include]  # to lowercase
@@ -777,6 +780,7 @@ def run(
             m.dynamic = dynamic
             m.export = True
             m.exclude_postprocess_detect = exclude_postprocess_detect
+            m.separate_outputs = separate_outputs
         
         if act_type is None and isinstance(m, Conv):
             if isinstance(m.act, nn.SiLU):
@@ -795,7 +799,7 @@ def run(
         y = model(im)  # dry runs
     if half and not coreml:
         im, model = im.half(), model.half()  # to FP16
-    shape = tuple((y[0] if isinstance(y, tuple) else y).shape)  # model output shape
+    shape = tuple((y[0] if isinstance(y, tuple) or isinstance(y, list) else y).shape)  # model output shape
     metadata = {'stride': int(max(model.stride)), 'names': model.names}  # model metadata
     LOGGER.info(f"\n{colorstr('PyTorch:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
 
@@ -827,7 +831,8 @@ def run(
                                            topk_all=topk_all,
                                            iou_thres=iou_thres,
                                            conf_thres=conf_thres,
-                                           keras=keras)
+                                           keras=keras,
+                                           separate_outputs=separate_outputs)
         if pb or tfjs:  # pb prerequisite to tfjs
             f[6], _ = export_pb(s_model, file)
         if tflite or edgetpu:
@@ -882,6 +887,7 @@ def parse_opt(known=False):
     parser.add_argument('--iou-thres', type=float, default=0.45, help='TF.js NMS: IoU threshold')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='TF.js NMS: confidence threshold')
     parser.add_argument('--exclude-postprocess-detect', action='store_true', help='onnx export excludes postprocessing for detection models')
+    parser.add_argument('--separate-outputs', action='store_true', help='export model with outputs separated into heads')
     parser.add_argument(
         '--include',
         nargs='+',
