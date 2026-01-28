@@ -73,10 +73,25 @@ class Ensemble(nn.ModuleList):
 def attempt_load(weights, device=None, inplace=True, fuse=True):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     from models.yolo import Detect, Model
+    import types, pickle
 
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = torch.load(attempt_download(w), map_location='cpu')  # load
+        class WindowsUnpickler(pickle.Unpickler):
+            """Custom Unpickler that handles Windows paths."""
+
+            def find_class(self, module, name):
+                """Override to handle Windows paths."""
+                if module == "pathlib":
+                    if name == "WindowsPath":
+                        return super().find_class("pathlib", "PosixPath")
+                return super().find_class(module, name)
+        
+        win_pickle = types.ModuleType("win_pickle")
+        win_pickle.Unpickler = WindowsUnpickler
+        win_pickle.load = lambda file_obj: WindowsUnpickler(file_obj).load()
+
+        ckpt = torch.load(attempt_download(w), pickle_module=win_pickle, map_location='cpu')  # load
         ckpt = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
 
         # Model compatibility updates
